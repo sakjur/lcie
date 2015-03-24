@@ -1,0 +1,12 @@
+{application, lcie,
+ [
+  {description, "L'Cie is a very tiny IRC bot written in Erlang"},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { myapp_app, []}},
+  {env, []}
+ ]}.
