@@ -1,5 +1,5 @@
 -module(irc).
--author("Emil Tullstedt <sakjur@gmail.com>")
+-author("Emil Tullstedt <sakjur@gmail.com>").
 -include("irc.hrl").
 -export([connect/2]).
 -export([server/1, server/2, user/1, user/3]).
@@ -19,7 +19,7 @@ connect(Server, User) ->
         [binary, {packet, 2}]),
     io:format("~s~n", [print_user(User)]),
     io:format("Socket ~p~n", [Socket]),
-    % gen_tcp:send(Socket, print_user(User)),
+    gen_tcp:send(Socket, print_user(User)),
     Reply = wait_reply(Socket),
     io:format("Reply = ~p~n", [Reply]),
     gen_tcp:close(Socket).
@@ -32,14 +32,8 @@ wait_reply(_Socket) ->
     end.
 
 print_user(User) ->
-    "NICK " ++ User#ircuser.nickname ++ ?newline ++
-    "USER " ++
-        User#ircuser.username ++
-        " " ++
-        User#ircuser.username ++
-        " " ++
-        User#ircuser.username ++
-        " :" ++
-        User#ircuser.realname ++
-        ?newline.
+    "NICK " ++ User#ircuser.nickname ++ ?newline
+        ++ "USER "
+        ++ User#ircuser.username ++ " 0 * :"
+        ++ User#ircuser.realname ++ ?newline.
 
