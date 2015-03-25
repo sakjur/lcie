@@ -3,11 +3,12 @@
 
 -include("lcie.hrl").
 -define(newline, "\r\n").
+-define(ircport, 6667).
 
 -record(server, {
     type=irc,
     host,
-    port=6667
+    port=?ircport
 }).
 
 -record(ircuser, {

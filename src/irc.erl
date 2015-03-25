@@ -2,33 +2,37 @@
 -author("Emil Tullstedt <sakjur@gmail.com>").
 -include("irc.hrl").
 -export([connect/2]).
--export([server/1, server/2, user/1, user/3]).
+-ifdef(TEST).
+-export([server_fmt/1, server_fmt/2, user_fmt/1, user_fmt/3]).
+-endif.
 
-server(Host) ->
-    server(Host, 6667).
-server(Host, Port) ->
+server_fmt(Host) ->
+    server_fmt(Host, ?ircport).
+server_fmt(Host, Port) ->
     #server{host=Host, port=Port}.
 
-user(Nickname) ->
-    user(Nickname, Nickname, ?version).
-user(Nickname, Username, Realname) ->
+user_fmt(Nickname) ->
+    user_fmt(Nickname, Nickname, ?version).
+user_fmt(Nickname, Username, Realname) ->
     #ircuser{nickname=Nickname, username=Username, realname=Realname}.
 
-connect(Server, User) ->
+connect({ServerStr, Port}, UserStr) ->
+    Server = server_fmt(ServerStr, Port),
+    User = user_fmt(UserStr),
     {ok, Socket} = gen_tcp:connect(Server#server.host, Server#server.port,
-        [binary, {packet, 2}]),
+        [binary, {packet, 0}]),
     io:format("~s~n", [print_user(User)]),
     io:format("Socket ~p~n", [Socket]),
     gen_tcp:send(Socket, print_user(User)),
-    Reply = wait_reply(Socket),
-    io:format("Reply = ~p~n", [Reply]),
-    gen_tcp:close(Socket).
+    recv(Socket);
+connect(ServerStr, UserStr) ->
+    connect({ServerStr, ?ircport}, UserStr).
 
-wait_reply(_Socket) ->
+recv(Socket) ->
     receive
-        Reply -> {value, Reply}
-    after 100000 ->
-        timeout
+        {tcp, Socket, Data} ->
+            io:format("Received: ~p~n", [Data]),
+            recv(Socket)
     end.
 
 print_user(User) ->
