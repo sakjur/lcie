@@ -21,19 +21,46 @@ connect({ServerStr, Port}, UserStr) ->
     User = user_fmt(UserStr),
     {ok, Socket} = gen_tcp:connect(Server#server.host, Server#server.port,
         [binary, {packet, 0}]),
-    io:format("~s~n", [print_user(User)]),
-    io:format("Socket ~p~n", [Socket]),
     gen_tcp:send(Socket, print_user(User)),
     recv(Socket);
 connect(ServerStr, UserStr) ->
     connect({ServerStr, ?ircport}, UserStr).
 
 recv(Socket) ->
+    Self = self(),
     receive
         {tcp, Socket, Data} ->
-            io:format("Received: ~p~n", [Data]),
-            recv(Socket)
-    end.
+            spawn(fun() -> manager(Data, Self) end);
+        {pong, Server} ->
+            gen_tcp:send(Socket, "PONG " ++ Server),
+            io:format("Sent pong!")
+    end,
+    recv(Socket).
+
+manager(Data, Ctrl) ->
+    String = binary_to_list(Data),
+    Msgs = ircstr:parse(String),
+    manageline(Msgs, Ctrl).
+
+manageline([], _) -> ok;
+manageline([{Prefix, Command, Msg} | Tail], Ctrl) ->
+    case Command of
+        "PING" ->
+            [$: | Server] = Msg,
+            Ctrl ! {pong, Server};
+        "NOTICE" -> ok;
+        ?RPL_WELCOME -> ok;
+        ?RPL_YOURHOST -> ok;
+        ?RPL_CREATED -> ok;
+        ?RPL_MYINFO -> ok;
+        ?RPL_BOUNCE -> ok;
+        ?RPL_MOTD -> ok;
+        ?RPL_MOTDSTART -> ok;
+        ?RPL_ENDOFMOTD -> ok;
+        _ -> io:format("~s ~s ~s~n", [Prefix, Command, Msg])
+    end,
+    manageline(Tail, Ctrl).
+    
 
 print_user(User) ->
     "NICK " ++ User#ircuser.nickname ++ ?newline
