@@ -1,13 +1,11 @@
 -module(irc).
 -author("Emil Tullstedt <sakjur@gmail.com>").
 -include("irc.hrl").
--export([connect/2]).
+-export([connect/2, send/2]).
 -ifdef(TEST).
--export([server_fmt/1, server_fmt/2, user_fmt/1, user_fmt/3]).
+-export([server_fmt/2, user_fmt/1, user_fmt/3]).
 -endif.
 
-server_fmt(Host) ->
-    server_fmt(Host, ?ircport).
 server_fmt(Host, Port) ->
     #server{host=Host, port=Port}.
 
@@ -22,18 +20,22 @@ connect({ServerStr, Port}, UserStr) ->
     {ok, Socket} = gen_tcp:connect(Server#server.host, Server#server.port,
         [binary, {packet, 0}]),
     gen_tcp:send(Socket, print_user(User)),
+    gen_tcp:send(Socket, "JOIN #lcietest" ++ ?newline),
     recv(Socket);
 connect(ServerStr, UserStr) ->
     connect({ServerStr, ?ircport}, UserStr).
 
+send(Pid, Data) ->
+    Pid ! {send, Data}.
+
 recv(Socket) ->
     Self = self(),
+    Ctrl = spawn(fun() -> irccontroller:start_controller(Self) end),
     receive
         {tcp, Socket, Data} ->
-            spawn(fun() -> manager(Data, Self) end);
-        {pong, Server} ->
-            gen_tcp:send(Socket, "PONG " ++ Server),
-            io:format("Sent pong!")
+            spawn(fun() -> manager(Data, Ctrl) end);
+        {send, Data} ->
+            gen_tcp:send(Socket, Data)
     end,
     recv(Socket).
 
@@ -43,22 +45,8 @@ manager(Data, Ctrl) ->
     manageline(Msgs, Ctrl).
 
 manageline([], _) -> ok;
-manageline([{Prefix, Command, Msg} | Tail], Ctrl) ->
-    case Command of
-        "PING" ->
-            [$: | Server] = Msg,
-            Ctrl ! {pong, Server};
-        "NOTICE" -> ok;
-        ?RPL_WELCOME -> ok;
-        ?RPL_YOURHOST -> ok;
-        ?RPL_CREATED -> ok;
-        ?RPL_MYINFO -> ok;
-        ?RPL_BOUNCE -> ok;
-        ?RPL_MOTD -> ok;
-        ?RPL_MOTDSTART -> ok;
-        ?RPL_ENDOFMOTD -> ok;
-        _ -> io:format("~s ~s ~s~n", [Prefix, Command, Msg])
-    end,
+manageline([IrcData | Tail], Ctrl) ->
+    Ctrl ! {irc, IrcData},
     manageline(Tail, Ctrl).
     
 

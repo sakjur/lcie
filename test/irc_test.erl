@@ -10,7 +10,7 @@ server_format_function_test() ->
     ?assertEqual(#server{host=?server}, irc:server_fmt(?server, ?ircport)).
 
 server_format_hostname_test() ->
-    Server = irc:server_fmt(?server),
+    Server = irc:server_fmt(?server, ?ircport),
     ?assertEqual(Server#server.host, ?server).
 
 server_format_custom_port_test() ->
